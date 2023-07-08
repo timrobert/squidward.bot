@@ -191,7 +191,7 @@ async function main() {
   const members = await getMembers(token);
   const events = await getThisWeeksEvents(token);
 
-  if(events.length==0){//if there are no events this week, don't send an email
+  if(events.length == 0){//if there are no events this week, don't send an email
     console.log('No email to send, there are no events this week.');
   } else {
     const requestBody = {

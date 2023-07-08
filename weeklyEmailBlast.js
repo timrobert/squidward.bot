@@ -53,10 +53,10 @@ async function getMembers(token) {
     const resWeeklyEmailBlastMembers = await axios.get(blastGroupUrl, blastGroupConfig);
 
     //filter, selecting only members who are in the WeeklyEmailBlast group
-    var contacts = resContacts.data.Contacts;
-    var blastGroupMemberIds = resWeeklyEmailBlastMembers.data.ContactIds;
-    var filteredContacts = contacts.filter(function(contact) {
-        return blastGroupMemberIds.includes(contact.Id);
+    const contacts = resContacts.data.Contacts;
+    const blastGroupMemberIds = resWeeklyEmailBlastMembers.data.ContactIds;
+    const filteredContacts = contacts.filter(function(contact) {
+      return blastGroupMemberIds.includes(contact.Id);
     });
 
     //console.log(filteredContacts);
@@ -86,10 +86,10 @@ function buildRecipientsList(members){
 }
 
 async function getThisWeeksEvents(token) {
-  var nextMonday = startOfThisWeekDate.getFullYear() + "-" + (startOfThisWeekDate.getMonth()+1) + "-" + startOfThisWeekDate.getDate()
-  var nextNextMonday = startOfNextWeekDate.getFullYear() + "-" + (startOfNextWeekDate.getMonth()+1) + "-" + startOfNextWeekDate.getDate()
   startOfThisWeekDategetNextMonday();
   startOfNextWeekDate = getNextMonday(startOfThisWeekDate);
+  const nextMonday = startOfThisWeekDate.getFullYear() + "-" + (startOfThisWeekDate.getMonth()+1) + "-" + startOfThisWeekDate.getDate()
+  const nextNextMonday = startOfNextWeekDate.getFullYear() + "-" + (startOfNextWeekDate.getMonth()+1) + "-" + startOfNextWeekDate.getDate()
 
   const eventsUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Events?$filter=StartDate ge "+nextMonday+" And StartDate lt "+nextNextMonday+"";
   const eventsConfig = {
@@ -102,7 +102,7 @@ async function getThisWeeksEvents(token) {
   try {
     const eventsRes = await axios.get(eventsUrl, eventsConfig);
 
-    var events = eventsRes.data.Events;
+    const events = eventsRes.data.Events;
 
     //events were not in ASC(StartDate) order, I think maybe by DESC(ID)?
     //anyway we need to reorder them to ensure consistency.
@@ -129,7 +129,7 @@ function buildEmailBody(events){
 
   //sort the events into DayOfWeek Buckets
   const daysOfWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  var eventsByDay = {
+  const eventsByDay = {
     "Monday": [],
     "Tuesday": [],
     "Wednesday": [],
@@ -140,14 +140,14 @@ function buildEmailBody(events){
   };
 
   events.forEach(function(event){
-    var eventDayNumber = (new Date(event.StartDate)).getDay();
-    var eventDayName = daysOfWeek[eventDayNumber];
+    const eventDayNumber = (new Date(event.StartDate)).getDay();
+    const eventDayName = daysOfWeek[eventDayNumber];
     eventsByDay[eventDayName].push(event);
   });
 
   //console.log(eventsByDay);
 
-  var emailBody = "<p>"
+  const emailBody = "<p>"
   emailBody += "Ahoy, {Contact_First_Name}!";
   emailBody += "</p>";
   emailBody += "<p>";

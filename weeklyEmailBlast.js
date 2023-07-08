@@ -15,7 +15,7 @@ async function getToken() {
       "Connection": "keep-alive"
     }
   };
-  const tokenData ={
+  const tokenData = {
     "grant_type": "client_credentials",
     "scope": "auto"
   }
@@ -48,7 +48,7 @@ async function getMembers(token) {
   };
 
 
-  try{
+  try {
     const resContacts = await axios.get(usersUrl, usersConfig);
     const resWeeklyEmailBlastMembers = await axios.get(blastGroupUrl, blastGroupConfig);
 
@@ -86,20 +86,20 @@ function buildRecipientsList(members){
 }
 
 async function getThisWeeksEvents(token) {
-  startOfThisWeekDate=getNextMonday();
-  startOfNextWeekDate=getNextMonday(startOfThisWeekDate);
   var nextMonday = startOfThisWeekDate.getFullYear() + "-" + (startOfThisWeekDate.getMonth()+1) + "-" + startOfThisWeekDate.getDate()
   var nextNextMonday = startOfNextWeekDate.getFullYear() + "-" + (startOfNextWeekDate.getMonth()+1) + "-" + startOfNextWeekDate.getDate()
+  startOfThisWeekDategetNextMonday();
+  startOfNextWeekDate = getNextMonday(startOfThisWeekDate);
 
   const eventsUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Events?$filter=StartDate ge "+nextMonday+" And StartDate lt "+nextNextMonday+"";
   const eventsConfig = {
-    headers:{
+    headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Authorization": "Bearer " + token
     }
   };
 
-  try{
+  try {
     const eventsRes = await axios.get(eventsUrl, eventsConfig);
 
     var events = eventsRes.data.Events;
@@ -193,7 +193,7 @@ async function main() {
 
   if(events.length==0){//if there are no events this week, don't send an email
     console.log('No email to send, there are no events this week.');
-  }else{
+  } else {
     const requestBody = {
       "Subject": "CLSA - Events this week!",
       "Body": buildEmailBody(events),
@@ -204,7 +204,7 @@ async function main() {
 
     const emailUrl = "https://api.wildapricot.org/"+apiVersion+"/rpc/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/email/SendEmail";
     const emailConfig = {
-      headers:{
+      headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": "Bearer " + token
       }

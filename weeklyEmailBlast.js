@@ -212,7 +212,7 @@ async function main() {
     const emailData = requestBody;
     try {
       const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
-      console.log("Email sent to "+1+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
+      console.log("Email sent to "+members.length+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
     } catch(err) {
       console.log('Unable to send the email.', err)
     }

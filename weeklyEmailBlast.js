@@ -29,7 +29,7 @@ async function getToken() {
 }
 
 async function getMembers(token) {
-  console.log("Get Active CLSA Members in WeeklyEmailBlast list...");
+  //console.log("Get Active CLSA Members in WeeklyEmailBlast list...");
   const usersUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
     headers:{
@@ -60,7 +60,7 @@ async function getMembers(token) {
     });
 
     //console.log(filteredContacts);
-    console.log("... found "+filteredContacts.length+" of "+contacts.length+" members.");
+    //console.log("... found "+filteredContacts.length+" of "+contacts.length+" members.");
 
     return filteredContacts;
   } catch(err) {
@@ -75,10 +75,13 @@ function buildRecipientsList(members){
   recipients.push({
       "Id": member.Id,
       "Type": "IndividualContactRecipient", //This is just a static value
-      "Name": member.FistName + " " + member.LastName,
+      "Name": member.FirstName + " " + member.LastName,
       "Email": member.Email
     });
   });
+
+  //console.log(recipients);
+
   return recipients;
 }
 
@@ -153,15 +156,13 @@ function buildEmailBody(events){
   emailBody += "<dl>";
 
   Object.keys(eventsByDay).forEach(day => {
-    emailBody += "<dt style='font-weight:bold'>"+day+"</dt>";
     if(eventsByDay[day].length>0){
+      emailBody += "<dt style='font-weight:bold'>"+day+"</dt>";
       eventsByDay[day].forEach(function(event){
         emailBody += "<dd>- " + event.Name + ", ";
         emailBody += (new Date(event.StartDate)).toLocaleString() + " ";
         emailBody += "<a href='https://www.clsasailing.org/event-" + event.Id+ "'>(Details)</a></dd>";
       });
-    }else{
-      emailBody += "<dd>- No events today</dd>";
     }
   });
 
@@ -190,35 +191,31 @@ async function main() {
   const members = await getMembers(token);
   const events = await getThisWeeksEvents(token);
 
-  const requestBody = {
-    "Subject": "CLSA - Events this week!",
-    "Body": buildEmailBody(events),
-    "ReplyToAddress": "clintonlakesailing@gmail.com",
-    "ReplyToName": "CLSA",
-    "Recipients": [
-      {
-        "Id": 111111,
-        "Type": "IndividualContactRecipient",
-        "Name": "first last",
-        "Email": "name@email.com"
+  if(events.length==0){//if there are no events this week, don't send an email
+    console.log('No email to send, there are no events this week.');
+  }else{
+    const requestBody = {
+      "Subject": "CLSA - Events this week!",
+      "Body": buildEmailBody(events),
+      "ReplyToAddress": "clintonlakesailing@gmail.com",
+      "ReplyToName": "CLSA",
+      "Recipients": buildRecipientsList(members)
       }
-    ]
-    //"Recipients": buildRecipientsList(members)
-    }
 
-  const emailUrl = "https://api.wildapricot.org/"+apiVersion+"/rpc/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/email/SendEmail";
-  const emailConfig = {
-    headers:{
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Bearer " + token
+    const emailUrl = "https://api.wildapricot.org/"+apiVersion+"/rpc/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/email/SendEmail";
+    const emailConfig = {
+      headers:{
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": "Bearer " + token
+      }
+    };
+    const emailData = requestBody;
+    try {
+      const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
+      console.log("Email sent to "+1+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
+    } catch(err) {
+      console.log('Unable to send the email.', err)
     }
-  };
-  const emailData = requestBody;
-  try {
-    const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
-    console.log("Email sent to "+1+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
-  } catch(err) {
-    console.log('Unable to send the email.', err)
   }
 
 }

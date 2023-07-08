@@ -71,8 +71,8 @@ async function getMembers(token) {
 function buildRecipientsList(members){
   const recipients = [];
 
-  members.forEach(function(member){
-  recipients.push({
+  members.forEach(function(member) {
+    recipients.push({
       "Id": member.Id,
       "Type": "IndividualContactRecipient", //This is just a static value
       "Name": member.FirstName + " " + member.LastName,

@@ -2,11 +2,7 @@ const axios = require('axios');
 
 const apiVersion = "v2.2";
 
-//console.log("Starting Email processing...");
-
 async function getToken() {
-  //console.log("Get acess token...");
-
   const tokenUrl = "https://oauth.wildapricot.org/auth/token";
   const tokenConfig = {
     headers:{
@@ -21,7 +17,6 @@ async function getToken() {
   }
   try {
     const reqToken = await axios.post(tokenUrl, tokenData, tokenConfig)
-    //console.log("... OK.");
     return reqToken.data.access_token;
   } catch(err) {
     throw new Error('Unable to aquire access token: ' + err);
@@ -29,7 +24,6 @@ async function getToken() {
 }
 
 async function getMembers(token) {
-  //console.log("Get Active CLSA Members in WeeklyEmailBlast list...");
   const usersUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
     headers:{
@@ -47,7 +41,6 @@ async function getMembers(token) {
     }
   };
 
-
   try {
     const resContacts = await axios.get(usersUrl, usersConfig);
     const resWeeklyEmailBlastMembers = await axios.get(blastGroupUrl, blastGroupConfig);
@@ -58,9 +51,6 @@ async function getMembers(token) {
     const filteredContacts = contacts.filter(function(contact) {
       return blastGroupMemberIds.includes(contact.Id);
     });
-
-    //console.log(filteredContacts);
-    //console.log("... found "+filteredContacts.length+" of "+contacts.length+" members.");
 
     return filteredContacts;
   } catch(err) {
@@ -80,18 +70,16 @@ function buildRecipientsList(members){
     });
   });
 
-  //console.log(recipients);
-
   return recipients;
 }
 
 async function getThisWeeksEvents(token) {
-  startOfThisWeekDategetNextMonday();
-  startOfNextWeekDate = getNextMonday(startOfThisWeekDate);
-  const nextMonday = startOfThisWeekDate.getFullYear() + "-" + (startOfThisWeekDate.getMonth()+1) + "-" + startOfThisWeekDate.getDate()
-  const nextNextMonday = startOfNextWeekDate.getFullYear() + "-" + (startOfNextWeekDate.getMonth()+1) + "-" + startOfNextWeekDate.getDate()
+  const startDate = getNextMonday();
+  const endDate = getNextMonday(startDate);
+  const startDateString = startDate.getFullYear() + "-" + (startDate.getMonth()+1) + "-" + startDate.getDate()
+  const endDateString = endDate.getFullYear() + "-" + (endDate.getMonth()+1) + "-" + endDate.getDate()
 
-  const eventsUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Events?$filter=StartDate ge "+nextMonday+" And StartDate lt "+nextNextMonday+"";
+  const eventsUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Events?$filter=StartDate ge "+startDateString+" And StartDate lt "+endDateString+"";
   const eventsConfig = {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -101,7 +89,6 @@ async function getThisWeeksEvents(token) {
 
   try {
     const eventsRes = await axios.get(eventsUrl, eventsConfig);
-
     const events = eventsRes.data.Events;
 
     //events were not in ASC(StartDate) order, I think maybe by DESC(ID)?
@@ -145,9 +132,7 @@ function buildEmailBody(events){
     eventsByDay[eventDayName].push(event);
   });
 
-  //console.log(eventsByDay);
-
-  const emailBody = "<p>"
+  var emailBody = "<p>"
   emailBody += "Ahoy, {Contact_First_Name}!";
   emailBody += "</p>";
   emailBody += "<p>";
@@ -167,6 +152,7 @@ function buildEmailBody(events){
   });
 
   emailBody += "</dl>";
+  emailBody += "<p>To view all upcoming events, please refer to the <a href='https://www.clsasailing.org/calendar'><strong>CLSA Events Calendar</strong></a>.</p>"
   emailBody += "<p>Fair winds and smooth sailing!</p>";
   emailBody += "<hr />";
   emailBody += "<small>To stop receiving the Weekly Email Blast visit <a href='{Member_Profile_URL}'>your member profile</a>, choose 'Edit' at the top, and then remove yourself from the 'WeeklyEmailBlast' group. To stop all CLSA emails: <a href='{Unsubscribe_Url}'>unsubscribe</a>.</small>";
@@ -186,7 +172,7 @@ function getNextMonday(date = new Date()) {
   return nextMonday;
 }
 
-async function main() {
+async function sendEmailBlast() {
   const token = await getToken();
   const members = await getMembers(token);
   const events = await getThisWeeksEvents(token);
@@ -220,4 +206,4 @@ async function main() {
 
 }
 
-main();
+sendEmailBlast();

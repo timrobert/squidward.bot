@@ -48,7 +48,12 @@ export SQUIDWARD_CLSAACCNTNUM="[Wild Apricot Account Number]"
 3. clone down the Squidward app
 4. use brew to install NPM
 5. use brew to install nodejs
+6. npm install axios
 
 ### Schedule the Job
 You can then run the job manually.
 Or (preferably) to run the job on a schedule via a `cron` job.
+
+```shell
+0 17 * * 6 node /YOUR/APP/PATH/squidward.bot/weeklyEmailBlast.js >> /YOUR/APP/PATH/squidward.bot/logs/cron_$(date '+%Y-%m-%d-%H-%M-%S').log 2>&1
+```

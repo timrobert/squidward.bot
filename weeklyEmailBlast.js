@@ -3,6 +3,7 @@ const axios = require('axios');
 const apiVersion = "v2.2";
 
 async function getToken() {
+  console.log("Get Wild Apricot Token...");
   const tokenUrl = "https://oauth.wildapricot.org/auth/token";
   const tokenConfig = {
     headers:{
@@ -17,6 +18,7 @@ async function getToken() {
   }
   try {
     const reqToken = await axios.post(tokenUrl, tokenData, tokenConfig)
+    console.log("\tOK.");
     return reqToken.data.access_token;
   } catch(err) {
     throw new Error('Unable to aquire access token: ' + err);
@@ -24,6 +26,7 @@ async function getToken() {
 }
 
 async function getMembers(token) {
+  console.log("Get email recipients...");
   const usersUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
     headers:{
@@ -51,7 +54,8 @@ async function getMembers(token) {
     const filteredContacts = contacts.filter(function(contact) {
       return blastGroupMemberIds.includes(contact.Id);
     });
-
+    
+    console.log("\tOK.");
     return filteredContacts;
   } catch(err) {
     throw new Error('Error getting users: ' + err);
@@ -59,8 +63,8 @@ async function getMembers(token) {
 }
 
 function buildRecipientsList(members){
+  console.log("Build recipients list...");
   const recipients = [];
-
   members.forEach(function(member) {
     recipients.push({
       "Id": member.Id,
@@ -69,11 +73,12 @@ function buildRecipientsList(members){
       "Email": member.Email
     });
   });
-
+  console.log("\tOK.");
   return recipients;
 }
 
 async function getThisWeeksEvents(token) {
+  console.log("Get events list...");
   const startDate = getNextMonday();
   const endDate = getNextMonday(startDate);
   const startDateString = startDate.getFullYear() + "-" + (startDate.getMonth()+1) + "-" + startDate.getDate()
@@ -105,7 +110,7 @@ async function getThisWeeksEvents(token) {
       }
       return 0;
     });
-
+    console.log("\tOK.");
     return events;
   } catch(err) {
     throw new Error('Unable to get events: ' + err);
@@ -113,7 +118,7 @@ async function getThisWeeksEvents(token) {
 }
 
 function buildEmailBody(events){
-
+  console.log("Build email body...");
   //sort the events into DayOfWeek Buckets
   const daysOfWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const eventsByDay = {
@@ -157,8 +162,7 @@ function buildEmailBody(events){
   emailBody += "<hr />";
   emailBody += "<small>To stop receiving the Weekly Email Blast visit <a href='{Member_Profile_URL}'>your member profile</a>, choose 'Edit' at the top, and then remove yourself from the 'WeeklyEmailBlast' group. To stop all CLSA emails: <a href='{Unsubscribe_Url}'>unsubscribe</a>.</small>";
 
-  //console.log(emailBody);
-
+  console.log("\tOK.");
   return emailBody;
 }
 
@@ -173,6 +177,7 @@ function getNextMonday(date = new Date()) {
 }
 
 async function sendEmailBlast() {
+  console.log("Process email blast...");
   const token = await getToken();
   const members = await getMembers(token);
   const events = await getThisWeeksEvents(token);

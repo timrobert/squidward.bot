@@ -18,7 +18,7 @@ do
   else
     echo "WARN: Email script exited with non-zero exit code. Retrying..."
     ((retry_count++))
-    sleep_count=$((retry_count * 60))  # Calculate the sleep time, Adding an increasing delay based on retry count
+    sleep_count=$((retry_count * 60 * 60))  # Calculate the sleep time, delay in 1hr increments
     echo "\tWaiting for $sleep_count seconds..."
     sleep "$sleep_count"
   fi

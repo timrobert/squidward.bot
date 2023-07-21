@@ -57,3 +57,6 @@ Or (preferably) to run the job on a schedule via a `cron` job.
 ```shell
 0 17 * * 6 node /YOUR/APP/PATH/squidward.bot/weeklyEmailBlast.js >> /YOUR/APP/PATH/squidward.bot/logs/cron_$(date '+%Y-%m-%d-%H-%M-%S').log 2>&1
 ```
+
+### Retry Loop
+After a network connection outage, I added a retry loop, so I added that in the `sendWeeklyClsaEmail.sh`

@@ -201,28 +201,10 @@ async function sendEmailBlast() {
       console.log("Email sent to "+members.length+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
     } catch(err) {
       throw new Error('Unable to send the email. ' + err);
+      process.exit(1);
     }
   }
 
 }
 
-async function main(){
-
-  const maxRetries = 5;
-  const waitTimeSecond = 30*60;
-  var success = false;
-  
-  currentRetries = 0;
-  while(!success && currentRetries<maxRetries){
-    currentRetries++;
-    try{
-      console.log('Starting email send...');
-      sendEmailBlast();
-      success = true;
-    }catch(err){
-      console.log('FAILED: Attempt '+currentRetries+' of '+maxRetries+': ', err);
-    }
-  }
-}
-
-main();
+sendEmailBlast();

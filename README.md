@@ -54,8 +54,10 @@ export SQUIDWARD_CLSAACCNTNUM="[Wild Apricot Account Number]"
 You can then run the job manually.
 Or (preferably) to run the job on a schedule via a `cron` job.
 
+Make a logs directory to send you logs to. Note the part after the `>>`.
+
 ```shell
-0 17 * * 6 node /YOUR/APP/PATH/squidward.bot/weeklyEmailBlast.js >> /YOUR/APP/PATH/squidward.bot/logs/cron_$(date '+%Y-%m-%d-%H-%M-%S').log 2>&1
+0 17 * * 6 sh /YOUR/APP/PATH/squidward.bot/sendWeeklyClsaEmail.sh >> /YOUR/APP/PATH/squidward.bot/logs/cron_$(date '+%Y-%m-%d-%H-%M-%S').log 2>&1
 ```
 
 ### Retry Loop

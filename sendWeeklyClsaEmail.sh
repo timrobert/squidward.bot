@@ -5,13 +5,13 @@ retry_count=0
 
 echo "Sending CLSA Weekly Email..."
 
-while [[ $retry_count -lt $retry_limit ]]
+while [ $retry_count -lt $retry_limit ]
 do
   node ./weeklyEmailBlast.js
   
   exit_code=$?
   
-  if [[ $exit_code -eq 0 ]]
+  if [ $exit_code -eq 0 ]
   then
     echo "SUCCESS: Email script executed successfully."
     break
@@ -24,7 +24,7 @@ do
   fi
 done
 
-if [[ $retry_count -eq $retry_limit ]]
+if [ $retry_count -eq $retry_limit ]
 then
   echo "ERROR: Exceeded retry limit. Node script execution failed."
   exit 1

@@ -7,7 +7,7 @@ echo "Sending CLSA Weekly Email..."
 
 while [ $retry_count -lt $retry_limit ]
 do
-  node ./weeklyEmailBlast.js
+  node ~/Documents/squidward.bot/logs/weeklyEmailBlast.js
   
   exit_code=$?
   
@@ -17,14 +17,14 @@ do
     break
   else
     echo "WARN: Email script exited with non-zero exit code. Retrying..."
-    ((retry_count++))
+    retry_count=$((retry_count-1))
     sleep_count=$((retry_count * 60 * 60))  # Calculate the sleep time, delay in 1hr increments
     echo "\tWaiting for $sleep_count seconds..."
     sleep "$sleep_count"
   fi
 done
 
-if [ $retry_count -eq $retry_limit ]
+if [ $retry_count -ge $retry_limit ]
 then
   echo "ERROR: Exceeded retry limit. Node script execution failed."
   exit 1

@@ -7,7 +7,7 @@ printf "Sending CLSA Weekly Email..."
 
 while [ $retry_count -lt $retry_limit ]
 do
-  node ~/Documents/squidward.bot/logs/weeklyEmailBlast.js
+  node ~/Documents/squidward.bot/weeklyEmailBlast.js
   
   exit_code=$?
   

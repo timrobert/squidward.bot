@@ -134,7 +134,9 @@ function buildEmailBody(events){
   events.forEach(function(event){
     const eventDayNumber = (new Date(event.StartDate)).getDay();
     const eventDayName = daysOfWeek[eventDayNumber];
-    eventsByDay[eventDayName].push(event);
+    if("public" == event.AccessLevel.toLowerCase()){ //prevents admin/special events from being added to the list
+      eventsByDay[eventDayName].push(event);
+    }
   });
 
   var emailBody = "<p>"

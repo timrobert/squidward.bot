@@ -1,14 +1,12 @@
 const axios = require('axios');
 
-const apiVersion = "v2.2";
-
-async function getToken() {
+async function getToken(waSecret) {
   console.log("Get Wild Apricot Token...");
   const tokenUrl = "https://oauth.wildapricot.org/auth/token";
   const tokenConfig = {
     headers:{
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Basic " + process.env.SQUIDWARD_SECRET,
+      "Authorization": "Basic " + waSecret,
       "Connection": "keep-alive"
     }
   };
@@ -25,22 +23,21 @@ async function getToken() {
   }
 }
 
-async function getMembers(token) {
+async function getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber) {
   console.log("Get email recipients...");
-  const usersUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Contacts?$async=false&$filter=Status eq Active";
+  const usersUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
     headers:{
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Bearer " + token
+      "Authorization": "Bearer " + waToken
     }
   };
 
-  const weeklyEmailBlastGroupId = 754676;
-  const blastGroupUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/membergroups/"+weeklyEmailBlastGroupId;
+  const blastGroupUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/membergroups/"+waEmailGroupNumber;
   const blastGroupConfig = {
     headers:{
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Bearer " + token
+      "Authorization": "Bearer " + waToken
     }
   };
 
@@ -77,18 +74,18 @@ function buildRecipientsList(members){
   return recipients;
 }
 
-async function getThisWeeksEvents(token) {
+async function getThisWeeksEvents(waToken, waApiVersion, waAccountNumber) {
   console.log("Get events list...");
   const startDate = getNextMonday();
   const endDate = getNextMonday(startDate);
   const startDateString = startDate.getFullYear() + "-" + (startDate.getMonth()+1) + "-" + startDate.getDate()
   const endDateString = endDate.getFullYear() + "-" + (endDate.getMonth()+1) + "-" + endDate.getDate()
 
-  const eventsUrl = "https://api.wildapricot.org/"+apiVersion+"/accounts/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/Events?$filter=StartDate ge "+startDateString+" And StartDate lt "+endDateString+"";
+  const eventsUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/Events?$filter=StartDate ge "+startDateString+" And StartDate lt "+endDateString+"";
   const eventsConfig = {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Bearer " + token
+      "Authorization": "Bearer " + waToken
     }
   };
 
@@ -134,7 +131,7 @@ function buildEmailBody(events){
   events.forEach(function(event){
     const eventDayNumber = (new Date(event.StartDate)).getDay();
     const eventDayName = daysOfWeek[eventDayNumber];
-    if("public" == event.AccessLevel.toLowerCase()){ //prevents admin/special events from being added to the list
+    if("PUBLIC" == event.AccessLevel.toUpperCase()){ //prevents admin/special events from being added to the list
       eventsByDay[eventDayName].push(event);
     }
   });
@@ -179,39 +176,54 @@ function getNextMonday(date = new Date()) {
 }
 
 async function sendEmailBlast() {
+
+  console.log("Reading in configuration file...");
+  const config = require('./squidwardSettings.json');
+  const environment = config.environment.toUpperCase();
+  const waApiVersion = config.wildApricotAPI.version;
+  const waSecret = config.wildApricotAPI.secret;
+  const waAccountNumber = config.wildApricotAPI.accountNumber;
+  const waEmailGroupNumber = config.wildApricotAPI.weeklyEmailBlastGroupId;
+  console.log("\tOK.");
+
+
   console.log("Process email blast...");
-  const token = await getToken();
-  const members = await getMembers(token);
-  const events = await getThisWeeksEvents(token);
+  const waToken = await getToken(waSecret);
+  const members = await getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber);
+  const events = await getThisWeeksEvents(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber);
 
   if(events.length == 0){//if there are no events this week, don't send an email
     console.log('No email to send, there are no events this week.');
   } else {
-    const requestBody = {
+    const emailData = {
       "Subject": "CLSA - Events this week!",
       "Body": buildEmailBody(events),
       "ReplyToAddress": "clintonlakesailing@gmail.com",
       "ReplyToName": "CLSA",
       "Recipients": buildRecipientsList(members)
       }
-
-    const emailUrl = "https://api.wildapricot.org/"+apiVersion+"/rpc/"+process.env.SQUIDWARD_CLSAACCNTNUM+"/email/SendEmail";
+    const emailUrl = "https://api.wildapricot.org/"+waApiVersion+"/rpc/"+waAccountNumber+"/email/SendEmail";
     const emailConfig = {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Bearer " + token
+        "Authorization": "Bearer " + waToken
       }
     };
-    const emailData = requestBody;
+
     try {
-      const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
-      console.log("Email sent to "+members.length+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
+      if('PROD' == environment ){
+        const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
+        console.log("Email sent to "+members.length+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
+      }else if('DEV' == environment ){
+        console.log("DEV ENVIRONMENT, not sending request to process email.");
+      }else{
+        throw new Error("Unknown environment configuration value: " + environment);
+      }      
     } catch(err) {
       throw new Error('Unable to send the email. ' + err);
       process.exit(1);
     }
   }
-
 }
 
 sendEmailBlast();

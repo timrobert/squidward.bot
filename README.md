@@ -25,6 +25,7 @@ WildApricot can send individual event reminders and registrations. But these eve
 12. Email must include link to the full CLSA events Calendar
 13. Email must include link or instuctions on how to unsubscribe from the weekly email
 14. Email should have a friendly and nautical tone
+15. Events which are have `AccessLevel` of `admin` should not be included in the weekly email blast.
 
 ## Technical details
 Uses the Wild Apricot API.

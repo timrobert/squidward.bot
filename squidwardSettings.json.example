@@ -1,0 +1,9 @@
+{
+    "environment":"PROD",
+    "wildApricotAPI": {
+        "version": "v2.2",
+        "secret": "YOUR SECRET TOKEN HERE",
+        "accountNumber": "YOUR ACCOUNT NUMBER HERE",
+        "weeklyEmailBlastGroupId": 111111
+    }
+}

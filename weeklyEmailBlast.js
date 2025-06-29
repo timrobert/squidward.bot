@@ -1,10 +1,12 @@
 const axios = require('axios');
+const fs = require('node:fs');
+
 
 async function getToken(waSecret) {
   console.log("Get Wild Apricot Token...");
   const tokenUrl = "https://oauth.wildapricot.org/auth/token";
   const tokenConfig = {
-    headers:{
+    headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Authorization": "Basic " + waSecret,
       "Connection": "keep-alive"
@@ -18,24 +20,24 @@ async function getToken(waSecret) {
     const reqToken = await axios.post(tokenUrl, tokenData, tokenConfig)
     console.log("\tOK.");
     return reqToken.data.access_token;
-  } catch(err) {
+  } catch (err) {
     throw new Error('Unable to aquire access token: ' + err);
   }
 }
 
 async function getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber) {
   console.log("Get email recipients...");
-  const usersUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/Contacts?$async=false&$filter=Status eq Active";
+  const usersUrl = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
-    headers:{
+    headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Authorization": "Bearer " + waToken
     }
   };
 
-  const blastGroupUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/membergroups/"+waEmailGroupNumber;
+  const blastGroupUrl = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/membergroups/" + waEmailGroupNumber;
   const blastGroupConfig = {
-    headers:{
+    headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Authorization": "Bearer " + waToken
     }
@@ -48,21 +50,21 @@ async function getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNu
     //filter, selecting only members who are in the WeeklyEmailBlast group
     const contacts = resContacts.data.Contacts;
     const blastGroupMemberIds = resWeeklyEmailBlastMembers.data.ContactIds;
-    const filteredContacts = contacts.filter(function(contact) {
+    const filteredContacts = contacts.filter(function (contact) {
       return blastGroupMemberIds.includes(contact.Id);
     });
-    
+
     console.log("\tOK.");
     return filteredContacts;
-  } catch(err) {
+  } catch (err) {
     throw new Error('Error getting users: ' + err);
   }
 }
 
-function buildRecipientsList(members){
+function buildRecipientsList(members) {
   console.log("Build recipients list...");
   const recipients = [];
-  members.forEach(function(member) {
+  members.forEach(function (member) {
     recipients.push({
       "Id": member.Id,
       "Type": "IndividualContactRecipient", //This is just a static value
@@ -75,49 +77,97 @@ function buildRecipientsList(members){
 }
 
 async function getThisWeeksEvents(waToken, waApiVersion, waAccountNumber) {
-  console.log("Get events list...");
-  const startDate = getNextMonday();
-  const endDate = getNextMonday(startDate);
-  const startDateString = startDate.getFullYear() + "-" + (startDate.getMonth()+1) + "-" + startDate.getDate()
-  const endDateString = endDate.getFullYear() + "-" + (endDate.getMonth()+1) + "-" + endDate.getDate()
-
-  const eventsUrl = "https://api.wildapricot.org/"+waApiVersion+"/accounts/"+waAccountNumber+"/Events?$filter=StartDate ge "+startDateString+" And StartDate lt "+endDateString+"";
-  const eventsConfig = {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Bearer " + waToken
-    }
-  };
-
   try {
+    console.log("Get events list...");
+    //const startDate = getNextMonday();
+    const emailWindowStartDate = new Date("2025-07-21T17:02:00"); //TODO: this is a debug line, remove it
+    const emailWindowEndDate = getNextMonday(emailWindowStartDate);
+    const startDateString = emailWindowStartDate.getFullYear() + "-" + (emailWindowStartDate.getMonth() + 1) + "-" + emailWindowStartDate.getDate()
+    const endDateString = emailWindowEndDate.getFullYear() + "-" + (emailWindowEndDate.getMonth() + 1) + "-" + emailWindowEndDate.getDate()
+
+    const eventsPath = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/Events?"; //API endpoint
+    const eventsFilter = "$filter=StartDate lt " + endDateString + " And EndDate gt " + startDateString + "&$sort=StartDate asc"; //filter
+    const eventsSort = "&$sort=StartDate asc"; //sort order
+    const eventsUrl = eventsPath + eventsFilter + eventsSort;
+
+    console.log("\tURL:" + eventsUrl);
+
+    const eventsConfig = {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": "Bearer " + waToken
+      }
+    };
     const eventsRes = await axios.get(eventsUrl, eventsConfig);
-    const events = eventsRes.data.Events;
 
-    //events were not in ASC(StartDate) order, I think maybe by DESC(ID)?
-    //anyway we need to reorder them to ensure consistency.
-    events.sort((a, b) => {
-      const date1 = new Date(a.StartDate);
-      const date2 = new Date(b.StartDate);
+    console.log("====== RAW RESULT ====");
+    console.log(eventsRes);
 
-      if (date1 > date2) {
-        return 1;
+    const eventsRaw = eventsRes.data.Events;
+
+    console.log("====== RAW EVENTS ====");
+    console.log(eventsRaw);
+
+    var eventsFiltered = [];
+
+    for (const event of eventsRaw) {
+      const ADMIN_ONLY = "AdminOnly".toUpperCase(); //they want RESTRICTED (member only) and PUBLIC events to show but not ADMIN (hidden) events.
+      if (ADMIN_ONLY != event.AccessLevel.toUpperCase()) { //prevents admin events from being added to the list
+
+        //Get the Event description 
+        const eventDetailsPath = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/Events/" + event.Id;
+        console.log("Getting Event Details: " + eventDetailsPath);
+        const eventDetailsRes = await axios.get(eventDetailsPath, eventsConfig);
+        const eventDescription = eventDetailsRes.data.Details.DescriptionHtml ? eventDetailsRes.data.Details.DescriptionHtml : "";
+
+
+        if (null == event.Sessions) { //if there are no sessions
+          //build an event object with the fields we care about
+          const newEvent = {};
+          newEvent.Name = event.Name;
+          newEvent.DateTime = event.StartDate;
+          newEvent.Id = event.Id;
+          newEvent.Location = event.Location;
+          newEvent.DescriptionHtml = eventDescription;
+          newEvent.Tags = event.tags ? event.tags : [];
+          eventsFiltered.push(newEvent); //add the event
+        } else { //use the individual sessions
+          event.Sessions.forEach(function (session) {
+
+            //filter only sessions for this week
+            const sessionStartDate = new Date(session.StartDate);
+            const sessionEndDate = new Date(session.EndDate);
+            if (sessionStartDate < emailWindowEndDate && sessionEndDate > emailWindowStartDate) {
+              //build an event object with the fields we care about, for each session
+              const newEvent = {};
+              newEvent.Name = session.Title;
+              newEvent.DateTime = session.StartDate;
+              newEvent.Id = event.Id;
+              newEvent.Location = event.Location;
+              newEvent.DescriptionHtml = eventDescription;
+              newEvent.Tags = event.tags ? event.tags : [];
+              eventsFiltered.push(newEvent); //add each session
+            }
+          });
+        }
       }
-      if (date1 < date2) {
-        return -1;
-      }
-      return 0;
-    });
+    }
+
+    console.log("====== FILTERED EVENTS ====");
+    console.log(eventsFiltered);
+
     console.log("\tOK.");
-    return events;
-  } catch(err) {
+    return eventsFiltered;
+  } catch (err) {
     throw new Error('Unable to get events: ' + err);
   }
 }
 
-function buildEmailBody(events){
+
+function buildEmailBody(events) {
   console.log("Build email body...");
   //sort the events into DayOfWeek Buckets
-  const daysOfWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const eventsByDay = {
     "Monday": [],
     "Tuesday": [],
@@ -128,15 +178,23 @@ function buildEmailBody(events){
     "Sunday": []
   };
 
-  events.forEach(function(event){
-    const eventDayNumber = (new Date(event.StartDate)).getDay();
+  console.log("====== THE EVENTS ====");
+  console.log(events);
+
+  events.forEach(function (event) {
+
+    console.log("====== THIS EVENT ====");
+    console.log(event);
+
+    const eventDayNumber = (new Date(event.DateTime)).getDay();
     const eventDayName = daysOfWeek[eventDayNumber];
-    if("PUBLIC" == event.AccessLevel.toUpperCase()){ //prevents admin/special events from being added to the list
-      eventsByDay[eventDayName].push(event);
-    }
+    eventsByDay[eventDayName].push(event); //add the event to the correct day
   });
 
-  var emailBody = "<p>"
+
+  var emailBody = "";
+  emailBody += "<style>\ndetails { \ntransition: 0.2s background linear;\n} \ndetails:hover {\nbackground: #d6eaf8;\n} \ndetails > summary {\n transition: color 1s;\n}\n details[open] > summary {\n  color: #000000;\n}\n</style>\n";
+  emailBody += "<p>";
   emailBody += "Ahoy, {Contact_First_Name}!";
   emailBody += "</p>";
   emailBody += "<p>";
@@ -145,12 +203,19 @@ function buildEmailBody(events){
   emailBody += "<dl>";
 
   Object.keys(eventsByDay).forEach(day => {
-    if(eventsByDay[day].length>0){
-      emailBody += "<dt style='font-weight:bold'>"+day+"</dt>";
-      eventsByDay[day].forEach(function(event){
-        emailBody += "<dd>- " + event.Name + ", ";
-        emailBody += (new Date(event.StartDate)).toLocaleString() + " ";
-        emailBody += "<a href='https://www.clsasailing.org/event-" + event.Id+ "'>(Details)</a></dd>";
+    if (eventsByDay[day].length > 0) {
+      var TmstmpOfFirstEvent = new Date(eventsByDay[day][0].DateTime);
+      var dateMonth = TmstmpOfFirstEvent.getMonth()+1;
+      var dateDay = TmstmpOfFirstEvent.getDate();
+
+      emailBody += "<dt style='font-weight:bold'>" + day + " ("+ dateMonth +"/"+ dateDay +")" + "</dt>";
+      eventsByDay[day].forEach(function (event) {
+        emailBody += "<dd>";
+        emailBody += "- " + event.Name + "  ";
+        emailBody += " @" + new Date(event.DateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" } );
+        emailBody += ", " + event.Location + "";
+        emailBody += "<a href='https://www.clsasailing.org/event-" + event.Id + "'>(more details)</a>";
+        emailBody += "</dd>";
       });
     }
   });
@@ -160,6 +225,15 @@ function buildEmailBody(events){
   emailBody += "<p>Fair winds and smooth sailing!</p>";
   emailBody += "<hr />";
   emailBody += "<small>To stop receiving the Weekly Email Blast visit <a href='{Member_Profile_URL}'>your member profile</a>, choose 'Edit' at the top, and then remove yourself from the 'WeeklyEmailBlast' group. To stop all CLSA emails: <a href='{Unsubscribe_Url}'>unsubscribe</a>.</small>";
+
+  //TODO: Debug line, remove later
+  fs.writeFile('./testEmail.html', emailBody, err => {
+    if (err) {
+      console.error(err);
+    } else {
+      // file written successfully
+    }
+  });
 
   console.log("\tOK.");
   return emailBody;
@@ -172,6 +246,7 @@ function getNextMonday(date = new Date()) {
       dateCopy.getDate() + ((7 - dateCopy.getDay() + 1) % 7 || 7),
     ),
   );
+  console.log("Next Monday:" + nextMonday);
   return nextMonday;
 }
 
@@ -190,9 +265,9 @@ async function sendEmailBlast() {
   console.log("Process email blast...");
   const waToken = await getToken(waSecret);
   const members = await getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber);
-  const events = await getThisWeeksEvents(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber);
+  const events = await getThisWeeksEvents(waToken, waApiVersion, waAccountNumber);
 
-  if(events.length == 0){//if there are no events this week, don't send an email
+  if (events.length == 0) {//if there are no events this week, don't send an email
     console.log('No email to send, there are no events this week.');
   } else {
     const emailData = {
@@ -201,8 +276,8 @@ async function sendEmailBlast() {
       "ReplyToAddress": "clintonlakesailing@gmail.com",
       "ReplyToName": "CLSA",
       "Recipients": buildRecipientsList(members)
-      }
-    const emailUrl = "https://api.wildapricot.org/"+waApiVersion+"/rpc/"+waAccountNumber+"/email/SendEmail";
+    }
+    const emailUrl = "https://api.wildapricot.org/" + waApiVersion + "/rpc/" + waAccountNumber + "/email/SendEmail";
     const emailConfig = {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -211,15 +286,15 @@ async function sendEmailBlast() {
     };
 
     try {
-      if('PROD' == environment ){
+      if ('PROD' == environment) {
         const emailIdNumber = await axios.post(emailUrl, emailData, emailConfig)
-        console.log("Email sent to "+members.length+" recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId="+emailIdNumber.data+"&persistHeader=1");
-      }else if('DEV' == environment ){
+        console.log("Email sent to " + members.length + " recipients. To track processing details see: https://www.clsasailing.org/admin/emails/log/details/?emailId=" + emailIdNumber.data + "&persistHeader=1");
+      } else if ('DEV' == environment) {
         console.log("DEV ENVIRONMENT, not sending request to process email.");
-      }else{
+      } else {
         throw new Error("Unknown environment configuration value: " + environment);
-      }      
-    } catch(err) {
+      }
+    } catch (err) {
       throw new Error('Unable to send the email. ' + err);
       process.exit(1);
     }

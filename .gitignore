@@ -1,3 +1,8 @@
+#Squidward Project Stuff
+setup.sh
+squidwardSettings.json
+example_crontab
+
 # Logs
 logs
 *.log

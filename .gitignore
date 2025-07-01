@@ -2,6 +2,9 @@
 setup.sh
 squidwardSettings.json
 example_crontab
+testEmail.html
+package-lock.json
+package.json
 
 # Logs
 logs

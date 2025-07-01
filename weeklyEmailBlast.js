@@ -79,8 +79,8 @@ function buildRecipientsList(members) {
 async function getThisWeeksEvents(waToken, waApiVersion, waAccountNumber) {
   try {
     console.log("Get events list...");
-    //const startDate = getNextMonday();
-    const emailWindowStartDate = new Date("2025-07-21T17:02:00"); //TODO: this is a debug line, remove it
+    const emailWindowStartDate = getNextMonday();
+    //const emailWindowStartDate = new Date("2025-08-04T17:02:00"); //TODO: this is a debug line, remove it
     const emailWindowEndDate = getNextMonday(emailWindowStartDate);
     const startDateString = emailWindowStartDate.getFullYear() + "-" + (emailWindowStartDate.getMonth() + 1) + "-" + emailWindowStartDate.getDate()
     const endDateString = emailWindowEndDate.getFullYear() + "-" + (emailWindowEndDate.getMonth() + 1) + "-" + emailWindowEndDate.getDate()
@@ -129,7 +129,7 @@ async function getThisWeeksEvents(waToken, waApiVersion, waAccountNumber) {
           newEvent.Id = event.Id;
           newEvent.Location = event.Location;
           newEvent.DescriptionHtml = eventDescription;
-          newEvent.Tags = event.tags ? event.tags : [];
+          newEvent.Tags = event.Tags ? event.Tags : [];
           eventsFiltered.push(newEvent); //add the event
         } else { //use the individual sessions
           event.Sessions.forEach(function (session) {
@@ -145,7 +145,7 @@ async function getThisWeeksEvents(waToken, waApiVersion, waAccountNumber) {
               newEvent.Id = event.Id;
               newEvent.Location = event.Location;
               newEvent.DescriptionHtml = eventDescription;
-              newEvent.Tags = event.tags ? event.tags : [];
+              newEvent.Tags = event.Tags ? event.Tags : [];
               eventsFiltered.push(newEvent); //add each session
             }
           });
@@ -193,47 +193,51 @@ function buildEmailBody(events) {
 
 
   var emailBody = "";
-  emailBody += "<style>\ndetails { \ntransition: 0.2s background linear;\n} \ndetails:hover {\nbackground: #d6eaf8;\n} \ndetails > summary {\n transition: color 1s;\n}\n details[open] > summary {\n  color: #000000;\n}\n</style>\n";
+  emailBody += "<style>html{font-family:sans-serif;}</style>\n";
   emailBody += "<p>";
   emailBody += "Ahoy, {Contact_First_Name}!";
   emailBody += "</p>";
   emailBody += "<p>";
-  emailBody += "Get ready for another exciting week of sailing events at the Clinton Lake Sailing Association (CLSA)! Here's a quick overview of the upcoming events:";
+  emailBody += "Get ready for another exciting week of sailing events at the Clinton Lake Sailing Association (CLSA)! <br><br>Here's a quick overview of the upcoming events:";
   emailBody += "</p>";
-  emailBody += "<dl>";
+  emailBody += "";
 
   Object.keys(eventsByDay).forEach(day => {
     if (eventsByDay[day].length > 0) {
       var TmstmpOfFirstEvent = new Date(eventsByDay[day][0].DateTime);
-      var dateMonth = TmstmpOfFirstEvent.getMonth()+1;
+      var dateMonth = TmstmpOfFirstEvent.getMonth() + 1;
       var dateDay = TmstmpOfFirstEvent.getDate();
 
-      emailBody += "<dt style='font-weight:bold'>" + day + " ("+ dateMonth +"/"+ dateDay +")" + "</dt>";
+      emailBody += "<h3 style='text-decoration: underline'>" + day + " (" + dateMonth + "/" + dateDay + ")" + "</h3>";
       eventsByDay[day].forEach(function (event) {
-        emailBody += "<dd>";
-        emailBody += "- " + event.Name + "  ";
-        emailBody += " @" + new Date(event.DateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" } );
-        emailBody += ", " + event.Location + "";
-        emailBody += "<a href='https://www.clsasailing.org/event-" + event.Id + "'>(more details)</a>";
-        emailBody += "</dd>";
+        emailBody += "<p style='margin-left: 2em'>";
+        //emailBody += "&bull; <a href='https://www.clsasailing.org/event-" + event.Id + "'><strong>" + event.Name + "</strong></a>";
+        emailBody += "&bull; <strong>" + event.Name + "</strong>";
+        emailBody += ", " + new Date(event.DateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        emailBody += " @ " + event.Location;
+        if (event.Tags.includes("volunteer opportunity")) {
+          emailBody += " &mdash; <em style='color:red;'>*Volunteers Needed!*</em>";
+        }
+        emailBody += " | <a href='https://www.clsasailing.org/event-" + event.Id + "'>Details</a>";
+        emailBody += "</p>";
       });
     }
   });
 
-  emailBody += "</dl>";
+  emailBody += "";
   emailBody += "<p>To view all upcoming events, please refer to the <a href='https://www.clsasailing.org/calendar'><strong>CLSA Events Calendar</strong></a>.</p>"
   emailBody += "<p>Fair winds and smooth sailing!</p>";
   emailBody += "<hr />";
   emailBody += "<small>To stop receiving the Weekly Email Blast visit <a href='{Member_Profile_URL}'>your member profile</a>, choose 'Edit' at the top, and then remove yourself from the 'WeeklyEmailBlast' group. To stop all CLSA emails: <a href='{Unsubscribe_Url}'>unsubscribe</a>.</small>";
 
   //TODO: Debug line, remove later
-  fs.writeFile('./testEmail.html', emailBody, err => {
-    if (err) {
-      console.error(err);
-    } else {
-      // file written successfully
-    }
-  });
+  // fs.writeFile('./testEmail.html', emailBody, err => {
+  //   if (err) {
+  //     console.error(err);
+  //   } else {
+  //     // file written successfully
+  //   }
+  // });
 
   console.log("\tOK.");
   return emailBody;

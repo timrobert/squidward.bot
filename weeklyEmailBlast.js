@@ -1,6 +1,15 @@
+/** TODO IDEAS LIST:
+
+[ ] Add-in fun intro para quotes randomizer
+[ ] Refactor to dedicated classes and paginationHelper
+
+**/
+
 const axios = require('axios');
 const fs = require('node:fs');
 
+//PAGINATION MVP REQS
+let MAX_RECORDS = 100; //get first 100 records 
 
 async function getToken(waSecret) {
   console.log("Get Wild Apricot Token...");
@@ -27,7 +36,7 @@ async function getToken(waSecret) {
 
 async function getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNumber) {
   console.log("Get email recipients...");
-  const usersUrl = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/Contacts?$async=false&$filter=Status eq Active";
+  let usersUrl = "https://api.wildapricot.org/" + waApiVersion + "/accounts/" + waAccountNumber + "/Contacts?$async=false&$filter=Status eq Active";
   const usersConfig = {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -44,11 +53,29 @@ async function getMembers(waToken, waApiVersion, waAccountNumber, waEmailGroupNu
   };
 
   try {
-    const resContacts = await axios.get(usersUrl, usersConfig);
+    
+    let page = 0;
+    let allContacts = [];
+    let resContacts;
+    do{
+      page++;
+      resContacts = await axios.get(usersUrl+"&$top="+MAX_RECORDS+"&$skip="+MAX_RECORDS*page, usersConfig);
+      console.log("\t\tAdding more contacts: " + resContacts.data.Contacts.length);
+      allContacts.concat(resContacts.data.Contacts);
+      
+    }while(MAX_RECORDS == resContacts.data.Contacts.length);
+
+    console.log("====== CONTACTS RESULT ====");
+    console.log(allContacts);
+
+
     const resWeeklyEmailBlastMembers = await axios.get(blastGroupUrl, blastGroupConfig);
+    console.log("====== EMAIL BLAST MEMBERS RESULT ====");
+    console.log(resWeeklyEmailBlastMembers);
+
 
     //filter, selecting only members who are in the WeeklyEmailBlast group
-    const contacts = resContacts.data.Contacts;
+    const contacts = allContacts;
     const blastGroupMemberIds = resWeeklyEmailBlastMembers.data.ContactIds;
     const filteredContacts = contacts.filter(function (contact) {
       return blastGroupMemberIds.includes(contact.Id);

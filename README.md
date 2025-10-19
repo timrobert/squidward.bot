@@ -26,6 +26,7 @@ WildApricot can send individual event reminders and registrations. But these eve
 13. Email must include link or instuctions on how to unsubscribe from the weekly email
 14. Email should have a friendly and nautical tone
 15. Events which are have `AccessLevel` of `admin` should not be included in the weekly email blast.
+16. Pagination added per [WildApricot requirement](https://gethelp.wildapricot.com/en/articles/2911-preparing-your-api-integrations-for-pagination#changes) - November 1, 2025
 
 ## Technical details
 Uses the Wild Apricot API.
